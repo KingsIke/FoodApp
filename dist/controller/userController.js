@@ -1,6 +1,6 @@
 "use strict";
 Object.defineProperty(exports, "__esModule", { value: true });
-exports.resendOTP = exports.Login = exports.verifyUser = exports.Register = void 0;
+exports.updateUserProfile = exports.getSingleUser = exports.getAllUsers = exports.resendOTP = exports.Login = exports.verifyUser = exports.Register = void 0;
 const utils_1 = require("../utils");
 const userModel_1 = require("../model/userModel");
 const uuid_1 = require("uuid");
@@ -30,7 +30,7 @@ const Register = async (req, res, next) => {
         const User = await userModel_1.UserInstance.findOne({ where: { email: email } });
         //Create user
         if (!User) {
-            let user = await userModel_1.UserInstance.create({
+            await userModel_1.UserInstance.create({
                 id: (0, uuid_1.v4)(),
                 email,
                 password: userPassword,
@@ -44,9 +44,10 @@ const Register = async (req, res, next) => {
                 lng: 0,
                 lat: 0,
                 verified: false,
+                role: "user"
             });
             //Send OTP to User
-            await (0, utils_1.onRequestOTP)(otp, phone);
+            //await onRequestOTP(otp, phone)
             //Send Email
             const html = (0, utils_1.emailHtmml)(otp);
             await (0, utils_1.mailSent)(config_1.fromAdminMail, email, config_1.userSubject, html);
@@ -65,11 +66,11 @@ const Register = async (req, res, next) => {
             });
         }
         return res.status(400).json({
-            msg: "User already exist"
+            Error: "User already exist"
         });
     }
     catch (error) {
-        // console.log(error)
+        console.log(error);
         res.status(500).json({
             Error: "Internal Server Error",
             route: "/users/signup"
@@ -132,7 +133,7 @@ const Login = async (req, res) => {
         }
         //CHECK IF USER EXIST
         const User = await userModel_1.UserInstance.findOne({ where: { email: email } });
-        if (User) {
+        if (User && User.verified === true) {
             const validation = await (0, utils_1.validatePassword)(password, User.password, User.salt);
             if (validation) {
                 //GENERATE A SIGNATURE FOR THE USER
@@ -150,7 +151,7 @@ const Login = async (req, res) => {
             }
         }
         res.status(400).json({
-            Error: "Wrong Username or Password"
+            Error: "Wrong Username or Password or not verified User"
         });
     }
     catch (error) {
@@ -199,3 +200,105 @@ const resendOTP = async (req, res) => {
     }
 };
 exports.resendOTP = resendOTP;
+/**================================== PROFILE =============================================== */
+const getAllUsers = async (req, res) => {
+    try {
+        const limit = req.query.limit;
+        // const users = await UserInstance.findAll({})
+        // return res.status(200).json({
+        //     message: "You have successfully retrieved all users",
+        //     users
+        // })
+        const users = await userModel_1.UserInstance.findAndCountAll({
+            limit: limit
+        });
+        return res.status(200).json({
+            message: "You have successfully retrieved all users",
+            Count: users.count,
+            User: users.rows
+        });
+    }
+    catch (error) {
+        res.status(500).json({
+            Error: "Internal server Error",
+            route: "/users/getAllUsers"
+        });
+    }
+};
+exports.getAllUsers = getAllUsers;
+/**=======================================Single User========================================== */
+const getSingleUser = async (req, res) => {
+    try {
+        // const id = req.params.id
+        const { id } = req.user;
+        // console.log(id)
+        //find the user by Id
+        const User = (await userModel_1.UserInstance.findOne({ where: { id: id }, }));
+        if (User) {
+            return res.status(200).json({
+                message: `${User.email} successful logged in`,
+                User
+            });
+        }
+        return res.status(400).json({
+            message: `${User} not found`
+        });
+    }
+    catch (error) {
+        return res.status(500).json({
+            Error: "Internal server Error",
+            route: "/users/getUser"
+        });
+    }
+};
+exports.getSingleUser = getSingleUser;
+/**=====================================UPDATE USER PROFILE=========================================== */
+const updateUserProfile = async (req, res) => {
+    try {
+        const id = req.user.id;
+        const { firstName, lastName, address, phone } = req.body;
+        //Joi validation
+        const validateResult = utils_1.updateSchema.validate(req.body, utils_1.option);
+        if (validateResult.error) {
+            return res.status(400).json({
+                Error: validateResult.error.details[0].message,
+            });
+        }
+        //CHECK IF USER EXIST
+        const User = await userModel_1.UserInstance.findOne({ where: { id: id } });
+        if (!User) {
+            return res.status(400).json({
+                messsage: "You are not authorised to update your profile"
+            });
+        }
+        // Update
+        const updateUser = (await userModel_1.UserInstance.update({
+            firstName,
+            lastName,
+            address,
+            phone
+        }, {
+            where: { id: id }
+        }));
+        // if updated
+        if (updateUser) {
+            //CHECK IF USER EXIST
+            const User = await userModel_1.UserInstance.findOne({ where: { id: id } });
+            return res.status(200).json({
+                message: "You have successful update your profile",
+                User
+            });
+        }
+        return res.status(400).json({
+            message: "Error occured"
+        });
+    }
+    catch (error) {
+        return res.status(500).json({
+            Error: "Internal server Error",
+            route: "/users/update-profile"
+        });
+    }
+};
+exports.updateUserProfile = updateUserProfile;
+//forgot Password

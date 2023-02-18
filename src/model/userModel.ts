@@ -16,7 +16,9 @@ export interface UserAttribute {
     otp_expiry: Date;
     lng: number;
     lat: number;
-    verified: boolean
+    verified: boolean;
+    role: string;
+
 }
 
 export class UserInstance extends Model<UserAttribute>{ }
@@ -120,7 +122,15 @@ UserInstance.init({
                 msg: "User not Verified"
             }
         }
-    }
+    },
+    role: {
+        type: DataTypes.STRING,
+        allowNull: true
+    },
+    // superAdmin: {
+    //     type: DataTypes.STRING,
+    //     allowNull: true
+    // },
 
 },
     {

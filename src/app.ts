@@ -1,11 +1,17 @@
 import express, { Request, Response, NextFunction } from "express";
 import logger from "morgan"
 import cookieParser from "cookie-parser";
+import cors from 'cors'
 
 import userRouter from "./routes/users"
+import adminRouter from "./routes/admin"
 import indexRouter from "./routes/index"
+import vendorRouter from "./routes/vendor"
 
-import { db } from "./config/index"
+
+import { db } from "./config/index";
+import dotenv from "dotenv";
+dotenv.config()
 
 //SEQUELIZE CONNECTION
 
@@ -23,11 +29,15 @@ const app = express();
 app.use(express.json());
 app.use(logger('dev'))
 app.use(cookieParser())
+app.use(cors())
 
 //ROUTER MIDDLEWARE
 
-app.use("/users", userRouter)
 app.use("/", indexRouter)
+app.use("/users", userRouter)
+app.use("/admins", adminRouter)
+app.use("/vendors", vendorRouter)
+
 
 
 const port = 3550
